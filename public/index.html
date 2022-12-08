@@ -35,8 +35,12 @@
     const messageInput = document.getElementById('message-input');
     const sendButton = document.getElementById('send-button');
     const trash = document.getElementById('trash');
-    const id = Math.random().toString(16).slice(2)
-    const ws = new WebSocket('ws://' + window.location.host + '/ws?id='+id);
+    const id = Math.random().toString(16).slice(2);
+    let wss = 'wss';
+    if (window.location.host.indexOf('localhost') > -1) {
+      wss = 'ws';
+    }
+    const ws = new WebSocket(wss+'://' + window.location.host + '/ws?id='+id);
     const params = new Proxy(new URLSearchParams(window.location.search), {
       get: (searchParams, prop) => searchParams.get(prop),
     });
