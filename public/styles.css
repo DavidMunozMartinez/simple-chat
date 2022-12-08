@@ -3,6 +3,7 @@ body {
   background-color: rgb(46, 46, 46);
   color: bisque;
   font-family: 'Arial', Courier, monospace;
+  font-size: 16px;
 }
 #chat-info {
   position: fixed;
