@@ -35,7 +35,8 @@ body {
 #chat-info .chat-id {
   flex: 1;
 }
-#chat-ui {
+#chat-ui,
+#trash {
   position: absolute;
   bottom: 60px;
   left: 0;
@@ -46,6 +47,8 @@ body {
   display: flex;
   flex-direction: column-reverse;
   box-sizing: border-box;
+  overscroll-behavior: contain;
+  scroll-behavior: smooth;
 }
 .chat-input {
   position: fixed;
@@ -73,22 +76,30 @@ button {
   max-width: 100%;
   transition: height 200ms ease-in-out;
 }
+.message-container > p {
+  transition: 
+    transform 300ms ease-in-out,
+    opacity 300ms ease-in-out;
+  }
+.message-container.out p {
+  opacity: 0.8;
+  transform: scale(0.8);
+}
 p {
   padding: 10px 25px;
   max-width: 50%;
   overflow-wrap: break-word;
   display: inline-block;
-  border-radius: 9px;
+  border-radius: 16px;
   color: white;
   margin: 0;
   margin-top: 8px;
   box-sizing: border-box;
 
   animation-name: appear;
-  animation-duration: 400ms;
-  animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation-duration: 200ms;
+  animation-timing-function: cubic-bezier(0.39, 0.575, 0.565, 1);
   animation-iteration-count: 1;
-  animation-fill-mode: forwards;
 }
 p.sent {
   background-color: #17895c;
@@ -100,23 +111,16 @@ p.received {
 }
 
 #trash {
-  width: 100%;
-  height: 100%;
-  position: fixed;
   transform: translateY(105%);
-  display: flex;
-  flex-direction: column-reverse;
-  /* bottom: -100px;
-  left: -100px; */
 }
 
 @keyframes appear {
   0% {
-    opacity: 0;
-    scale: 0.6;
+    opacity: 0.6;
+    transform: scale(0.6);
   }
   100% {
     opacity: 1;
-    scale: 1;
+    transform: scale(1);
   }
 }
