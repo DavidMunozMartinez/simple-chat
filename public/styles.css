@@ -1,0 +1,106 @@
+body {
+  padding: 16px;
+  background-color: rgb(46, 46, 46);
+  color: bisque;
+}
+#chat-info {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 60px;
+  background-color: black;
+  display: flex;
+  align-items: center;
+  padding: 10px 20px;
+}
+#chat-info .chatting-with {
+  flex: 1;
+  display: flex;
+  align-items: center;
+}
+#chat-info .chatting-with span {
+  flex: 1;
+}
+#chat-info .chatting-with input {
+  flex: 1;
+  margin-right: 100px;
+}
+#chat-info .chat-id {
+  flex: 1;
+}
+#chat-ui {
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  padding: 8px;
+  width: 100%;
+  max-height: calc(100% - 100px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column-reverse;
+}
+.chat-input {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  height: 40px;
+  width: 100%;
+  display: flex;
+}
+.chat-input > input {
+  flex: 6;
+}
+.chat-input > button {
+  flex: 2;
+}
+
+button {
+  background-color: none;
+}
+
+.message-container {
+  cursor: pointer;
+  display: inline-block;
+  width: 100%;
+  transition: height 200ms ease-in-out;
+}
+p {
+  padding: 10px 25px;
+  max-width: 50%;
+  display: inline-block;
+  border-radius: 9px;
+  color: white;
+  margin-bottom: 8px;
+  animation-name: appear;
+  animation-duration: 400ms;
+  animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation-iteration-count: 1;
+  animation-fill-mode: forwards;
+}
+p.sent {
+  background-color: #17895c;
+  float: right;
+}
+p.received {
+  background-color: black;
+  float: left;
+}
+
+#trash {
+  width: 100%;
+  position: fixed;
+  bottom: -100px;
+  left: -100px;
+}
+
+@keyframes appear {
+  0% {
+    opacity: 0;
+    scale: 0.6;
+  }
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}

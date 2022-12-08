@@ -1,0 +1,115 @@
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="chat-info">
+    <span class="chatting-with">
+      <span for="with">
+        Sending to id:
+      </span>
+      <input id="chatting-with" name="with" type="text">
+    </span>
+    <span class="chat-id">
+      Your chat id: 
+    </span>
+  </div>
+
+  <div id="chat-ui">
+  </div>
+
+  <div class="chat-input">
+    <input type="text" id="message-input" />
+    <button id="send-button">>></button>
+  </div>
+
+  <div id="trash"></div>
+  
+  <script>
+    const chatUI = document.getElementById('chat-ui');
+    const messageInput = document.getElementById('message-input');
+    const sendButton = document.getElementById('send-button');
+    const trash = document.getElementById('trash');
+    const id = Math.random().toString(16).slice(2)
+    const ws = new WebSocket('ws://' + window.location.host + '/ws?id='+id);
+    const params = new Proxy(new URLSearchParams(window.location.search), {
+      get: (searchParams, prop) => searchParams.get(prop),
+    });
+
+    const chatInfo = document.getElementById('chat-info');
+    const chatId = chatInfo.getElementsByClassName('chat-id')[0];
+    chatId.innerHTML += id;
+
+    const chatWith = document.getElementById('chatting-with');
+    if (params.id) {
+      chatWith.value = params.id;
+    }
+
+    ws.addEventListener('message', (event) => {
+      const { message, id } = JSON.parse(event.data);
+      console.log('From: ', id);
+      append(message, false, id);
+    });
+
+    messageInput.focus();
+    messageInput.addEventListener('keydown', () => {
+      if (event.key === 'Enter') send();
+    });
+    sendButton.addEventListener('click', () => send());
+
+    function send() {
+      const message = messageInput.value.trim();
+      if (message) {
+        ws.send(JSON.stringify({
+          id,
+          to: chatWith.value,
+          message,
+          timestamp: new Date().getTime(),
+        }));
+        append(message, true);
+        messageInput.value = '';
+      }
+    }
+
+    function append(message, sent, from) {
+      let el = document.createElement('div')
+      el.classList.add('message-container');
+      el.classList.add(sent ? 'sent': 'received');
+      let = prefix = '';
+      if (from) {
+        prefix = `<p style="float: left; padding: 10px 0"> ${from}: </p>`;
+        el.onclick=() => {
+          chatWith.value = from;
+        }
+      }
+      el.innerHTML = `
+      ${prefix}
+      <p class="${sent ? 'sent': 'received'}">${message}</p>
+      `;
+      let height = getAnimationEndHeight(el);
+      el.style.height = 0;
+      chatUI.insertBefore(el, chatUI.firstChild);
+      chatUI.app
+      setTimeout(() => {
+        el.style.height = height;
+        chatUI.scrollTop = chatUI.scrollHeight;
+        setTimeout(() => {
+        }, 200);
+      });
+    }
+
+    function getAnimationEndHeight(el) {
+      trash.append(el);
+      let height = el.clientHeight;
+      trash.removeChild(el);
+      return height;
+    }
+  </script>
+  
+</body>
+</html>
