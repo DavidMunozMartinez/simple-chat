@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/gorilla/websocket"
+	"github.com/joho/godotenv"
 )
 
 var clients = make(map[string]*websocket.Conn)
@@ -54,6 +55,7 @@ func handleMessages() {
 }
 
 func main() {
+	godotenv.Load()
 	fs := http.FileServer(http.Dir("public"))
 	http.Handle("/", fs)
 	http.HandleFunc("/ws", handleConnections)

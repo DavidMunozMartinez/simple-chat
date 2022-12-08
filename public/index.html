@@ -4,19 +4,23 @@
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Document</title>
-  <link rel="stylesheet" href="https://unpkg.com/terminal.css@0.7.2/dist/terminal.min.css" />
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="input.css">
+  <link rel="stylesheet" href="button.css">
 </head>
 <body>
   <div id="chat-info">
     <span class="chatting-with">
-      <span for="with">
+      <span>
         Sending to id:
       </span>
       <input id="chatting-with" name="with" type="text">
     </span>
     <span class="chat-id">
-      Your chat id: 
+      <span>
+        Your chat id:
+      </span>
+
     </span>
   </div>
 
@@ -24,7 +28,7 @@
   </div>
 
   <div class="chat-input">
-    <input type="text" id="message-input" />
+    <input type="text" id="message-input" placeholder="Send a message..."/>
     <button id="send-button">>></button>
   </div>
 

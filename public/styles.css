@@ -2,6 +2,7 @@ body {
   padding: 16px;
   background-color: rgb(46, 46, 46);
   color: bisque;
+  font-family: 'Arial', Courier, monospace;
 }
 #chat-info {
   position: fixed;
@@ -13,40 +14,47 @@ body {
   display: flex;
   align-items: center;
   padding: 10px 20px;
+  box-sizing: border-box;
 }
 #chat-info .chatting-with {
   flex: 1;
   display: flex;
   align-items: center;
+  flex-direction: column;
 }
 #chat-info .chatting-with span {
   flex: 1;
+  text-align: right;
 }
 #chat-info .chatting-with input {
   flex: 1;
-  margin-right: 100px;
+  max-width: 180px;
+  margin: 0;
+  padding: 5px 10px;
 }
 #chat-info .chat-id {
   flex: 1;
 }
 #chat-ui {
   position: absolute;
-  bottom: 40px;
+  bottom: 60px;
   left: 0;
   padding: 8px;
   width: 100%;
-  max-height: calc(100% - 100px);
+  max-height: calc(100% - 120px);
   overflow: auto;
   display: flex;
   flex-direction: column-reverse;
+  box-sizing: border-box;
 }
 .chat-input {
   position: fixed;
   bottom: 0;
   left: 0;
-  height: 40px;
+  height: 60px;
   width: 100%;
   display: flex;
+  background-color: black;
 }
 .chat-input > input {
   flex: 6;
@@ -62,16 +70,20 @@ button {
 .message-container {
   cursor: pointer;
   display: inline-block;
-  width: 100%;
+  max-width: 100%;
   transition: height 200ms ease-in-out;
 }
 p {
   padding: 10px 25px;
   max-width: 50%;
+  overflow-wrap: break-word;
   display: inline-block;
   border-radius: 9px;
   color: white;
-  margin-bottom: 8px;
+  margin: 0;
+  margin-top: 8px;
+  box-sizing: border-box;
+
   animation-name: appear;
   animation-duration: 400ms;
   animation-timing-function: cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -89,9 +101,13 @@ p.received {
 
 #trash {
   width: 100%;
+  height: 100%;
   position: fixed;
-  bottom: -100px;
-  left: -100px;
+  transform: translateY(105%);
+  display: flex;
+  flex-direction: column-reverse;
+  /* bottom: -100px;
+  left: -100px; */
 }
 
 @keyframes appear {
