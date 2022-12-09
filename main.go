@@ -22,6 +22,8 @@ var upgrader = websocket.Upgrader{
 			return true
 		}
 
+		fmt.Printf("origin: %v\n", origin)
+
 		for _, allowed := range origins {
 			if origin == allowed {
 				return true
