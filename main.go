@@ -12,17 +12,15 @@ import (
 
 var clients = make(map[string]*websocket.Conn)
 var broadcast = make(chan Message)
-var origins = []string{"https://simple-chat-ui.vercel.app/"}
+var origins = []string{"https://simple-chat-ui.vercel.app"}
 
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
 		var origin = r.Header.Get("Origin")
-		fmt.Printf("r.Host: %v\n", r.Host)
+		fmt.Printf("origin: %v\n", origin)
 		if os.Getenv("LOCAL") == "true" {
 			return true
 		}
-
-		fmt.Printf("origin: %v\n", origin)
 
 		for _, allowed := range origins {
 			if origin == allowed {
