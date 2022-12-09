@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -11,7 +12,16 @@ import (
 
 var clients = make(map[string]*websocket.Conn)
 var broadcast = make(chan Message)
-var upgrader = websocket.Upgrader{}
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool {
+		fmt.Printf("r.Host: %v\n", r.Host)
+		if os.Getenv("LOCAL") == "true" {
+			return true
+		}
+
+		return r.Host == "simple-chat-ui.vercel.app"
+	},
+}
 
 type Message struct {
 	Timestamp int    `json:"timestamp"`
