@@ -18,7 +18,7 @@ var upgrader = websocket.Upgrader{
 		if os.Getenv("LOCAL") == "true" {
 			return true
 		}
-
+		fmt.Printf("r.URL.Host: %v\n", r.URL.Host)
 		return r.Host == "simple-chat-ui.vercel.app"
 	},
 }
