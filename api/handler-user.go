@@ -1,20 +1,56 @@
-package main
+package api
 
 import (
 	"context"
 	"encoding/json"
 	"net/http"
 
-	db_handler "chat.app/src"
+	db_handler "chat.app/db"
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
+
+func getUserId(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	type BodyStruct = struct {
+		AuthId string `json:"authId"`
+	}
+	var data BodyStruct
+	err := json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+	}
+
+	var user struct {
+		Id string `json:"_id" bson:"_id"`
+	}
+	filter := bson.M{
+		"authId": data.AuthId,
+	}
+	err = db_handler.Client().Collection("users").FindOne(
+		context.TODO(),
+		filter,
+	).Decode(&user)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+	} else {
+		json_data, json_error := json.Marshal(&user)
+		if json_error != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+		}
+		w.Write([]byte(json_data))
+	}
+}
 
 func signIn(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	type BodyStruct = struct {
-		Email string `json:"email"`
-		Id    string `json:"id"`
+		Email  string `json:"email"`
+		AuthId string `json:"authId"`
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
@@ -38,59 +74,65 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	type BodyStruct = struct {
-		Id string `json:"id"`
+		Id string `json:"_id"`
 	}
 	var body BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
-	type Contacts = struct {
-		Contacts bson.A `json:"contacts" bson:"contacts"`
+	type UserContacts = struct {
+		Contacts *[]primitive.ObjectID `json:"contacts" bson:"contacts"`
 	}
 
-	var contacts Contacts
+	objectId, _ := primitive.ObjectIDFromHex(body.Id)
+	var user UserContacts
 	filter := bson.M{
-		"id": body.Id,
+		"_id": objectId,
 	}
 	project := bson.M{
 		"contacts": 1,
 	}
 	options := options.FindOne().SetProjection(project)
 	collection := db_handler.Client().Collection("users")
-	err = collection.FindOne(context.TODO(), filter, options).Decode(&contacts)
+	err = collection.FindOne(context.TODO(), filter, options).Decode(&user)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
-	type Users = struct {
+	type User = struct {
 		Email string `json:"email" bson:"email"`
-		Id    string `json:"id" bson:"id"`
+		Id    string `json:"_id" bson:"_id"`
 	}
-	var users []Users
+	var users []User
 	userFilter := bson.M{
 		"_id": bson.M{
-			"$in": contacts.Contacts,
+			"$in": user.Contacts,
 		},
 	}
 	cursor, err := collection.Find(context.TODO(), userFilter)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	if err = cursor.All(context.TODO(), &users); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	json_data, json_error := json.Marshal(&users)
 	if json_error != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	} else {
 		w.Write(json_data)
 	}
@@ -99,8 +141,8 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 func addUserContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	type BodyStruct = struct {
-		Id        string `json:"id"`
-		ContactId string `json:"contactId"`
+		Id        primitive.ObjectID `json:"_id"`
+		ContactId primitive.ObjectID `json:"contactId"`
 	}
 	var body BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&body)
@@ -110,8 +152,8 @@ func addUserContact(w http.ResponseWriter, r *http.Request) {
 	}
 
 	collection := db_handler.Client().Collection("users")
-	filter := bson.D{
-		{"id", body.Id},
+	filter := bson.M{
+		"_id": body.Id,
 	}
 	update := bson.M{
 		"$push": bson.M{

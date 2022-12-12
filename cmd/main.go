@@ -7,7 +7,8 @@ import (
 	"net/http"
 	"os"
 
-	db_handler "chat.app/src"
+	api "chat.app/api"
+	db_handler "chat.app/db"
 	"github.com/joho/godotenv"
 	"go.mongodb.org/mongo-driver/bson"
 )
@@ -15,13 +16,19 @@ import (
 func main() {
 	godotenv.Load()
 	db_handler.MongoConnection()
-	http.HandleFunc("/ws", handleConnections)
-	http.HandleFunc("/query-contacts", queryContacts)
-	http.HandleFunc("/sign-in", signIn)
-	http.HandleFunc("/get-user-contacts", getUserContacts)
-	http.HandleFunc("/add-user-contacts", addUserContact)
+	api.InitRouterFunctions()
+	// http.HandleFunc("/ws", handleConnections)
+	// http.HandleFunc("/query-contacts", queryContacts)
 
-	go handleMessages()
+	// http.HandleFunc("/sign-in", signIn)
+	// http.HandleFunc("/get-user-id", getUserId)
+	// http.HandleFunc("/get-user-contacts", getUserContacts)
+	// http.HandleFunc("/add-user-contacts", addUserContact)
+
+	// http.HandleFunc("/save-message", saveMessage)
+	// http.HandleFunc("/get-messages", getMessages)
+
+	// go handleMessages()
 	log.Println("http server started on :" + os.Getenv("PORT"))
 	err := http.ListenAndServe(":"+os.Getenv("PORT"), nil)
 	if err != nil {
@@ -75,5 +82,4 @@ func queryContacts(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Write([]byte("[]"))
 	}
-
 }
