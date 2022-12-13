@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -55,8 +56,9 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 func getMessages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	type BodyStruct = struct {
-		Me  primitive.ObjectID `json:"me"`
-		You primitive.ObjectID `json:"you"`
+		IndexId *primitive.ObjectID `json:"index"`
+		Me      primitive.ObjectID  `json:"me"`
+		You     primitive.ObjectID  `json:"you"`
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
@@ -65,15 +67,18 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
+	fmt.Printf("%s", data)
 
 	type Message = struct {
+		Id        primitive.ObjectID `json:"_id" bson:"_id"`
 		Message   string             `json:"message"`
 		From      primitive.ObjectID `json:"from"`
 		To        primitive.ObjectID `json:"to"`
 		CreatedAt time.Time          `json:"createdAt"`
 	}
 	var messages []Message
-	filter := bson.M{
+
+	messagesFilter := bson.M{
 		"$or": bson.A{
 			bson.M{
 				"$and": bson.A{
@@ -88,6 +93,23 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 				},
 			},
 		},
+	}
+
+	filter := bson.M{}
+	if data.IndexId != nil {
+		fmt.Println("Index not as nill")
+		indexFilter := bson.M{
+			"_id": bson.M{
+				"$gt": data.IndexId,
+			},
+		}
+		filter["$and"] = bson.A{
+			messagesFilter,
+			indexFilter,
+		}
+	} else {
+		fmt.Println("Legacy filter")
+		filter = messagesFilter
 	}
 
 	collection := db_handler.Client().Collection("messages")
