@@ -22,7 +22,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
-	data.CreatedAt = time.Now()
+	// data.CreatedAt = time.Now()
 	// Messages will expire in a week
 	data.ExpireAt = time.Now().Add(time.Hour * time.Duration(24*7))
 
@@ -67,9 +67,10 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type Message = struct {
-		Message string             `json:"message"`
-		From    primitive.ObjectID `json:"from"`
-		To      primitive.ObjectID `json:"to"`
+		Message   string             `json:"message"`
+		From      primitive.ObjectID `json:"from"`
+		To        primitive.ObjectID `json:"to"`
+		CreatedAt time.Time          `json:"createdAt"`
 	}
 	var messages []Message
 	filter := bson.M{
