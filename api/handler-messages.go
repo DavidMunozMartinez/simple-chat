@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	db_handler "chat.app/db"
 	"go.mongodb.org/mongo-driver/bson"
@@ -13,12 +14,18 @@ import (
 func saveMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	type BodyStruct = struct {
-		Message string             `json:"message"`
-		From    primitive.ObjectID `json:"from"`
-		To      primitive.ObjectID `json:"to"`
+		Message   string             `json:"message"`
+		From      primitive.ObjectID `json:"from"`
+		To        primitive.ObjectID `json:"to"`
+		CreatedAt time.Time          `json:"createdAt" bson:"createdAt"`
+		ExpireAt  time.Time          `json:"expireAt" bson:"expireAt"`
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
+	data.CreatedAt = time.Now()
+	// Messages will expire in a week
+	data.ExpireAt = time.Now().Add(time.Hour * time.Duration(24*7))
+
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))

@@ -146,7 +146,7 @@ func addUserContact(w http.ResponseWriter, r *http.Request) {
 	}
 	var body BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&body)
-	if err != nil {
+	if err != nil && body.Id != body.ContactId {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 	}
