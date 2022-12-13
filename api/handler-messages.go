@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"time"
 
@@ -23,7 +22,6 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
-	// data.CreatedAt = time.Now()
 	// Messages will expire in a week
 	data.ExpireAt = time.Now().Add(time.Hour * time.Duration(24*7))
 
@@ -67,7 +65,6 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
-	fmt.Printf("%s", data)
 
 	type Message = struct {
 		Id        primitive.ObjectID `json:"_id" bson:"_id"`
@@ -97,7 +94,6 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 
 	filter := bson.M{}
 	if data.IndexId != nil {
-		fmt.Println("Index not as nill")
 		indexFilter := bson.M{
 			"_id": bson.M{
 				"$gt": data.IndexId,
@@ -108,7 +104,6 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 			indexFilter,
 		}
 	} else {
-		fmt.Println("Legacy filter")
 		filter = messagesFilter
 	}
 
