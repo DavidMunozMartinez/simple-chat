@@ -48,6 +48,9 @@ func InitRouterFunctions() {
 	http.HandleFunc("/get-user-contacts", getUserContacts)
 	http.HandleFunc("/add-user-contacts", addUserContact)
 
+	http.HandleFunc("/send-friend-request", sendFriendRequest)
+	http.HandleFunc("/accept-friend-request", acceptFriendRequest)
+
 	// Message based routes
 	http.HandleFunc("/save-message", saveMessage)
 	http.HandleFunc("/get-messages", getMessages)
