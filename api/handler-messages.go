@@ -13,6 +13,8 @@ import (
 
 func saveMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
 	type BodyStruct = struct {
 		Message   string             `json:"message"`
 		From      primitive.ObjectID `json:"from"`
@@ -28,6 +30,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	_, err = db_handler.Client().Collection("messages").InsertOne(
@@ -37,6 +40,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	if clients[data.To.Hex()] != nil {
@@ -53,6 +57,8 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 
 func getMessages(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
 	type BodyStruct = struct {
 		IndexId *primitive.ObjectID `json:"index"`
 		Me      primitive.ObjectID  `json:"me"`

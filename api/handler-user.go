@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 
 	db_handler "chat.app/db"
@@ -13,6 +14,7 @@ import (
 
 func getUserId(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
 	type BodyStruct = struct {
 		AuthId string `json:"authId"`
 	}
@@ -21,7 +23,10 @@ func getUserId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
+
+	fmt.Printf("%s", data)
 
 	var user struct {
 		Id string `json:"_id" bson:"_id"`
@@ -36,27 +41,30 @@ func getUserId(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
-	} else {
-		json_data, json_error := json.Marshal(&user)
-		if json_error != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-		}
-		w.Write([]byte(json_data))
+		return
 	}
+	json_data, json_error := json.Marshal(&user)
+	if json_error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.Write([]byte(json_data))
 }
 
 func signIn(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
 	type BodyStruct = struct {
-		Email  string `json:"email"`
-		AuthId string `json:"authId"`
+		Email  string `json:"email" bson:"email"`
+		AuthId string `json:"authId" bson:"authId"`
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	_, err = db_handler.Client().Collection("users").InsertOne(
@@ -66,9 +74,10 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 	w.WriteHeader(200)
-	w.Write([]byte("success"))
+	w.Write([]byte("{ \"success\": true }"))
 }
 
 func getUserContacts(w http.ResponseWriter, r *http.Request) {
@@ -181,6 +190,7 @@ func addUserContact(w http.ResponseWriter, r *http.Request) {
 	if err != nil && body.Id != body.ContactId {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	collection := db_handler.Client().Collection("users")
@@ -203,6 +213,7 @@ func addUserContact(w http.ResponseWriter, r *http.Request) {
 	if json_error != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	} else {
 		w.Write(json_data)
 	}
@@ -210,6 +221,8 @@ func addUserContact(w http.ResponseWriter, r *http.Request) {
 
 func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
 	type BodyStruct = struct {
 		From primitive.ObjectID `json:"from"` // Who sends the friend request
 		To   primitive.ObjectID `json:"to"`   // Who receives the request
@@ -220,6 +233,7 @@ func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 	if err != nil && body.From != body.To {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	// Update sender
@@ -284,6 +298,8 @@ func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 
 func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
 	type BodyStruct = struct {
 		From primitive.ObjectID `json:"from"` // Who originally sent the friend request
 		To   primitive.ObjectID `json:"to"`   // Who is accepting the request
@@ -293,6 +309,7 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	if err != nil && body.From != body.To {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
+		return
 	}
 
 	collection := db_handler.Client().Collection("users")
@@ -344,7 +361,5 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 		clients[body.From.Hex()].WriteJSON(user)
 	}
 
-	// w.Write([]byte("{\"success\": true }"))
 	w.Write([]byte("{ \"success\": true }"))
-
 }
