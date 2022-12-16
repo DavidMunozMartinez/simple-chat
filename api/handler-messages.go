@@ -16,6 +16,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	type BodyStruct = struct {
+		Id        primitive.ObjectID `json:"_id" bson:"_id"`
 		Message   string             `json:"message"`
 		From      primitive.ObjectID `json:"from"`
 		To        primitive.ObjectID `json:"to"`
@@ -26,6 +27,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&data)
 	// Messages will expire in a week
 	data.ExpireAt = time.Now().Add(time.Hour * time.Duration(24*7))
+	data.Id = primitive.NewObjectID()
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -51,8 +53,15 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	w.WriteHeader(200)
-	w.Write([]byte("{ \"success\": true }"))
+	json_data, json_error := json.Marshal(&data)
+	if json_error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	} else {
+		w.WriteHeader(200)
+		w.Write(json_data)
+	}
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {

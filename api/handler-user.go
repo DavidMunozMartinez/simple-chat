@@ -56,8 +56,9 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	w.Header().Set("Content-Type", "application/json")
 	type BodyStruct = struct {
-		Email  string `json:"email" bson:"email"`
-		AuthId string `json:"authId" bson:"authId"`
+		Id     primitive.ObjectID `json:"_id" bson:"_id"`
+		Email  string             `json:"email" bson:"email"`
+		AuthId string             `json:"authId" bson:"authId"`
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
@@ -66,6 +67,7 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
+	data.Id = primitive.NewObjectID()
 
 	_, err = db_handler.Client().Collection("users").InsertOne(
 		context.TODO(),
@@ -76,12 +78,22 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(err.Error()))
 		return
 	}
-	w.WriteHeader(200)
-	w.Write([]byte("{ \"success\": true }"))
+
+	json_data, json_error := json.Marshal(&data)
+	if json_error != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	} else {
+		w.WriteHeader(200)
+		w.Write(json_data)
+	}
 }
 
 func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
 	type BodyStruct = struct {
 		Id string `json:"_id"`
 	}
@@ -96,6 +108,7 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	type ContactsData = struct {
 		Contacts         *[]primitive.ObjectID `json:"contacts" bson:"contacts"`
 		ReceivedRequests *[]primitive.ObjectID `json:"receivedRequests" bson:"receivedRequests"`
+		SentRequests     *[]primitive.ObjectID `json:"sentRequests" bson:"sentRequests"`
 	}
 
 	objectId, _ := primitive.ObjectIDFromHex(body.Id)
@@ -106,6 +119,7 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	project := bson.M{
 		"contacts":         1,
 		"receivedRequests": 1,
+		"sentRequests":     1,
 	}
 	options := options.FindOne().SetProjection(project)
 	collection := db_handler.Client().Collection("users")
@@ -117,12 +131,13 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type User = struct {
-		Email string `json:"email" bson:"email"`
-		Id    string `json:"_id" bson:"_id"`
+		Email string             `json:"email" bson:"email"`
+		Id    primitive.ObjectID `json:"_id" bson:"_id"`
 	}
 	type ResponseStruct = struct {
-		Contacts []User `json:"contacts"`
-		Requests []User `json:"requests"`
+		Contacts     []User               `json:"contacts"`
+		Requests     []User               `json:"requests"`
+		SentRequests []primitive.ObjectID `json:"sentRequests"`
 	}
 	var response ResponseStruct
 	var userContacts []User
@@ -168,6 +183,7 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 
 	response.Contacts = userContacts
 	response.Requests = userRequests
+	response.SentRequests = *contactsData.SentRequests
 
 	json_data, json_error := json.Marshal(&response)
 	if json_error != nil {
@@ -257,22 +273,6 @@ func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	type requests = struct {
-		SentRequests []primitive.ObjectID `json:"sentRequests" bson:"sentRequests"`
-	}
-	var results requests
-	collection.FindOneAndUpdate(context.TODO(), receiver, receiverUpdate)
-	collection.FindOneAndUpdate(context.TODO(), sender, senderUpdate)
-	// Send request data to who made the request
-	json_data, json_err := json.Marshal(&results.SentRequests)
-	if json_err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
-	} else {
-		w.Write(json_data)
-	}
-
 	type User = struct {
 		Type  string `json:"type" bson:"type"`
 		Email string `json:"email" bson:"email"`
@@ -292,8 +292,21 @@ func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 		clients[body.To.Hex()].WriteJSON(user)
 	}
 
-	// w.Write([]byte("{\"success\": true }"))
-	w.Write([]byte("{ \"success\": true }"))
+	type requests = struct {
+		SentRequests []primitive.ObjectID `json:"sentRequests" bson:"sentRequests"`
+	}
+	var results requests
+	collection.FindOneAndUpdate(context.TODO(), receiver, receiverUpdate)
+	collection.FindOneAndUpdate(context.TODO(), sender, senderUpdate).Decode(&results)
+	// Send request data to who made the request
+	json_data, json_err := json.Marshal(&results.SentRequests)
+	if json_err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	w.WriteHeader(200)
+	w.Write(json_data)
 }
 
 func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
@@ -358,8 +371,13 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	user.Type = "request-accepted"
 	// Notify original sender trough WS
 	if clients[body.From.Hex()] != nil {
-		clients[body.From.Hex()].WriteJSON(user)
+		err := clients[body.From.Hex()].WriteJSON(user)
+		if err != nil {
+			w.WriteHeader(http.StatusBadRequest)
+			w.Write([]byte(err.Error()))
+			return
+		}
 	}
-
-	w.Write([]byte("{ \"success\": true }"))
+	w.WriteHeader(200)
+	w.Write([]byte(`{"success": true}`))
 }
