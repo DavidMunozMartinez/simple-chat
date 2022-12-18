@@ -48,6 +48,7 @@ func InitRouterFunctions() {
 	http.HandleFunc("/get-user-contacts", getUserContacts)
 	http.HandleFunc("/add-user-contacts", addUserContact)
 	http.HandleFunc("/update-user", updateUserData)
+	http.HandleFunc("/update-user-token", updateUserNotificationToken)
 
 	http.HandleFunc("/send-friend-request", sendFriendRequest)
 	http.HandleFunc("/accept-friend-request", acceptFriendRequest)

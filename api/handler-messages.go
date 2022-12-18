@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"time"
 
+	app_notifications "chat.app/app-notifications"
 	db_handler "chat.app/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
@@ -18,6 +19,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	type BodyStruct = struct {
 		Id        primitive.ObjectID `json:"_id" bson:"_id"`
 		Message   string             `json:"message"`
+		Title     string             `json:"title"`
 		From      primitive.ObjectID `json:"from"`
 		To        primitive.ObjectID `json:"to"`
 		CreatedAt time.Time          `json:"createdAt" bson:"createdAt"`
@@ -45,14 +47,10 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if clients[data.To.Hex()] != nil {
-		err = clients[data.To.Hex()].WriteJSON(data)
-		if err != nil {
-			clients[data.To.Hex()].Close()
-			delete(clients, data.To.Hex())
-		}
-	}
-
+	// Messaging priority
+	// 1.- respond OK to sender
+	// 2.- Send WS event to receiver
+	// 3.- Send Push Notification to receiver
 	json_data, json_error := json.Marshal(&data)
 	if json_error != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -62,6 +60,16 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
 		w.Write(json_data)
 	}
+
+	if clients[data.To.Hex()] != nil {
+		err = clients[data.To.Hex()].WriteJSON(data)
+		if err != nil {
+			clients[data.To.Hex()].Close()
+			delete(clients, data.To.Hex())
+		}
+	}
+
+	app_notifications.Notify(data.To, data.Title, data.Message)
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {

@@ -402,7 +402,6 @@ func updateUserData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// collection =
 	collection := db_handler.Client().Collection("users")
 	filter := bson.M{
 		"_id": body.Id,
@@ -414,6 +413,35 @@ func updateUserData(w http.ResponseWriter, r *http.Request) {
 	}
 	collection.FindOneAndUpdate(context.TODO(), filter, setter)
 
+	w.WriteHeader(200)
+	w.Write([]byte(`{"success": true}`))
+}
+
+func updateUserNotificationToken(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+	type BodyStruct = struct {
+		Id    primitive.ObjectID `json:"_id" bson:"_id"`
+		Token string             `json:"token" bson:"token"`
+	}
+	var body BodyStruct
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	collection := db_handler.Client().Collection("users")
+	filter := bson.M{
+		"_id": body.Id,
+	}
+	setter := bson.M{
+		"$set": bson.M{
+			"token": body.Token,
+		},
+	}
+	collection.FindOneAndUpdate(context.TODO(), filter, setter)
 	w.WriteHeader(200)
 	w.Write([]byte(`{"success": true}`))
 }
