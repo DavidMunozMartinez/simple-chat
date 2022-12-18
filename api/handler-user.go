@@ -3,7 +3,6 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	db_handler "chat.app/db"
@@ -26,10 +25,9 @@ func getUserId(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	fmt.Printf("%s", data)
-
 	var user struct {
-		Id string `json:"_id" bson:"_id"`
+		Id   string `json:"_id" bson:"_id"`
+		Name string `json:"name" bson:"name"`
 	}
 	filter := bson.M{
 		"authId": data.AuthId,
@@ -131,8 +129,9 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	type User = struct {
-		Email string             `json:"email" bson:"email"`
 		Id    primitive.ObjectID `json:"_id" bson:"_id"`
+		Email string             `json:"email" bson:"email"`
+		Name  string             `json:"name" bson:"name"`
 	}
 	type ResponseStruct = struct {
 		Contacts     []User               `json:"contacts"`
@@ -183,7 +182,9 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 
 	response.Contacts = userContacts
 	response.Requests = userRequests
-	response.SentRequests = *contactsData.SentRequests
+	if contactsData.SentRequests != nil {
+		response.SentRequests = *contactsData.SentRequests
+	}
 
 	json_data, json_error := json.Marshal(&response)
 	if json_error != nil {
@@ -195,6 +196,7 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// DEPRECATED
 func addUserContact(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
 	type BodyStruct = struct {
@@ -276,6 +278,7 @@ func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 	type User = struct {
 		Type  string `json:"type" bson:"type"`
 		Email string `json:"email" bson:"email"`
+		Name  string `json:"name" bson:"name"`
 		Id    string `json:"_id" bson:"_id"`
 	}
 	var user User
@@ -356,9 +359,10 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	collection.FindOneAndUpdate(context.TODO(), receiver, receiverUpdate)
 	collection.FindOneAndUpdate(context.TODO(), sender, senderUpdate)
 	type User = struct {
-		Type  string `json:"type" bson:"type"`
-		Email string `json:"email" bson:"email"`
 		Id    string `json:"_id" bson:"_id"`
+		Email string `json:"email" bson:"email"`
+		Name  string `json:"name" bson:"name"`
+		Type  string `json:"type" bson:"type"`
 	}
 	var user User // Who sent the request
 	// Return new contact info to who accepted the request
@@ -378,6 +382,38 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
+	w.WriteHeader(200)
+	w.Write([]byte(`{"success": true}`))
+}
+
+func updateUserData(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Content-Type", "application/json")
+
+	type BodyStruct = struct {
+		Id   primitive.ObjectID `json:"_id" bson:"_id"`
+		Name string             `json:"name" bson:"name"`
+	}
+	var body BodyStruct
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+
+	// collection =
+	collection := db_handler.Client().Collection("users")
+	filter := bson.M{
+		"_id": body.Id,
+	}
+	setter := bson.M{
+		"$set": bson.M{
+			"name": body.Name,
+		},
+	}
+	collection.FindOneAndUpdate(context.TODO(), filter, setter)
+
 	w.WriteHeader(200)
 	w.Write([]byte(`{"success": true}`))
 }
