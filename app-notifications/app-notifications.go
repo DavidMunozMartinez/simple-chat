@@ -53,15 +53,18 @@ func Notify(to primitive.ObjectID, title string, message string) {
 		log.Println("Failed Notification, No User: " + err.Error())
 	}
 
-	notification := &messaging.Message{
-		Notification: &messaging.Notification{
-			Title: title + " says: ",
-			Body:  message,
-		},
-		Token: user.Token,
+	if user.Token != "" {
+		notification := &messaging.Message{
+			Notification: &messaging.Notification{
+				Title: title + " says: ",
+				Body:  message,
+			},
+			Token: user.Token,
+		}
+		_, err = client.Send(context.TODO(), notification)
+		if err != nil {
+			log.Fatalln("Failed Notification, Firebase", err)
+		}
 	}
-	_, err = client.Send(context.TODO(), notification)
-	if err != nil {
-		log.Fatalln(err)
-	}
+
 }

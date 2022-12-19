@@ -56,9 +56,6 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte(err.Error()))
 		return
-	} else {
-		w.WriteHeader(200)
-		w.Write(json_data)
 	}
 
 	if clients[data.To.Hex()] != nil {
@@ -68,8 +65,10 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 			delete(clients, data.To.Hex())
 		}
 	}
-
 	app_notifications.Notify(data.To, data.Title, data.Message)
+
+	w.WriteHeader(200)
+	w.Write(json_data)
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {
