@@ -134,9 +134,9 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 		Name  string             `json:"name" bson:"name"`
 	}
 	type ResponseStruct = struct {
-		Contacts     []User               `json:"contacts"`
-		Requests     []User               `json:"requests"`
-		SentRequests []primitive.ObjectID `json:"sentRequests"`
+		Contacts         []User               `json:"contacts"`
+		ReceivedRequests []User               `json:"receivedRequests"`
+		SentRequests     []primitive.ObjectID `json:"sentRequests"`
 	}
 	var response ResponseStruct
 	var userContacts []User
@@ -181,7 +181,7 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.Contacts = userContacts
-	response.Requests = userRequests
+	response.ReceivedRequests = userRequests
 	if contactsData.SentRequests != nil {
 		response.SentRequests = *contactsData.SentRequests
 	}

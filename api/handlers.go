@@ -84,10 +84,12 @@ func queryContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filter := bson.D{
-		{Key: "$text", Value: bson.D{
-			{Key: "$search", Value: body.SearchTerm},
-		}},
+	filter := bson.M{
+		"$text": bson.M{
+			"$search":             body.SearchTerm,
+			"$caseSensitive":      false,
+			"$diacriticSensitive": false,
+		},
 	}
 
 	type UsersDocument = struct {
