@@ -12,10 +12,20 @@ import (
 	"go.mongodb.org/mongo-driver/bson/primitive"
 )
 
-func saveMessage(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
+type Message = struct {
+	Id        primitive.ObjectID `json:"_id" bson:"_id"`
+	Message   string             `json:"message"`
+	From      primitive.ObjectID `json:"from"`
+	To        primitive.ObjectID `json:"to"`
+	CreatedAt time.Time          `json:"createdAt"`
+}
 
+var messageRoutes = []AppRoute{
+	{"/save-message", saveMessage},
+	{"/get-messages", getMessages},
+}
+
+func saveMessage(w http.ResponseWriter, r *http.Request) {
 	type BodyStruct = struct {
 		Id        primitive.ObjectID `json:"_id" bson:"_id"`
 		Message   string             `json:"message"`
@@ -33,7 +43,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Bad request"))
 		return
 	}
 
@@ -43,7 +53,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Unable to save"))
 		return
 	}
 
@@ -54,7 +64,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 	json_data, json_error := json.Marshal(&data)
 	if json_error != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Bad data"))
 		return
 	}
 
@@ -72,9 +82,6 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 }
 
 func getMessages(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
 	type BodyStruct = struct {
 		IndexId *primitive.ObjectID `json:"index"`
 		Me      primitive.ObjectID  `json:"me"`
@@ -84,17 +91,10 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Bad request"))
 		return
 	}
 
-	type Message = struct {
-		Id        primitive.ObjectID `json:"_id" bson:"_id"`
-		Message   string             `json:"message"`
-		From      primitive.ObjectID `json:"from"`
-		To        primitive.ObjectID `json:"to"`
-		CreatedAt time.Time          `json:"createdAt"`
-	}
 	var messages []Message
 
 	messagesFilter := bson.M{
@@ -133,20 +133,20 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	cursor, err := collection.Find(context.TODO(), filter)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Unable to get"))
 		return
 	}
 
 	if err = cursor.All(context.TODO(), &messages); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Unable to get"))
 		return
 	}
 
 	json_data, json_error := json.Marshal(&messages)
 	if json_error != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
+		w.Write(responseError("Bad data"))
 		return
 	} else {
 		w.Write(json_data)

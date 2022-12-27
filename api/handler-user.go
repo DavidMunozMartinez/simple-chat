@@ -11,13 +11,36 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type User = struct {
+	Id     primitive.ObjectID `json:"_id" bson:"_id"`
+	AuthId string             `json:"authId" bson:"authId"`
+	Email  string             `json:"email" bson:"email"`
+	Name   string             `json:"name" bson:"name"`
+}
+
+type ContactsData = struct {
+	Contacts         *[]primitive.ObjectID `json:"contacts" bson:"contacts"`
+	ReceivedRequests *[]primitive.ObjectID `json:"receivedRequests" bson:"receivedRequests"`
+	SentRequests     *[]primitive.ObjectID `json:"sentRequests" bson:"sentRequests"`
+}
+
+var userRoutes = []AppRoute{
+	{"/get-user-id", getUserId},
+	{"/get-user-contacts", getUserContacts},
+	{"/update", updateUser},
+	{"/update-user", updateUserData},
+	{"/update-user-token", updateUserNotificationToken},
+	{"/send-friend-request", sendFriendRequest},
+	{"/accept-friend-request", acceptFriendRequest},
+}
+
+var validUserProperties = []string{
+	"token",
+	"name",
+}
+
 func getUserId(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-	type BodyStruct = struct {
-		AuthId string `json:"authId"`
-	}
-	var data BodyStruct
+	var data User
 	err := json.NewDecoder(r.Body).Decode(&data)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -25,10 +48,7 @@ func getUserId(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var user struct {
-		Id   string `json:"_id" bson:"_id"`
-		Name string `json:"name" bson:"name"`
-	}
+	var user User
 	filter := bson.M{
 		"authId": data.AuthId,
 	}
@@ -51,8 +71,6 @@ func getUserId(w http.ResponseWriter, r *http.Request) {
 }
 
 func signIn(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
 	type BodyStruct = struct {
 		Id     primitive.ObjectID `json:"_id" bson:"_id"`
 		Email  string             `json:"email" bson:"email"`
@@ -89,13 +107,7 @@ func signIn(w http.ResponseWriter, r *http.Request) {
 }
 
 func getUserContacts(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
-	type BodyStruct = struct {
-		Id string `json:"_id"`
-	}
-	var body BodyStruct
+	var body User
 	err := json.NewDecoder(r.Body).Decode(&body)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
@@ -103,16 +115,9 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type ContactsData = struct {
-		Contacts         *[]primitive.ObjectID `json:"contacts" bson:"contacts"`
-		ReceivedRequests *[]primitive.ObjectID `json:"receivedRequests" bson:"receivedRequests"`
-		SentRequests     *[]primitive.ObjectID `json:"sentRequests" bson:"sentRequests"`
-	}
-
-	objectId, _ := primitive.ObjectIDFromHex(body.Id)
 	var contactsData ContactsData
 	filter := bson.M{
-		"_id": objectId,
+		"_id": body.Id,
 	}
 	project := bson.M{
 		"contacts":         1,
@@ -128,60 +133,33 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	type User = struct {
-		Id    primitive.ObjectID `json:"_id" bson:"_id"`
-		Email string             `json:"email" bson:"email"`
-		Name  string             `json:"name" bson:"name"`
-	}
 	type ResponseStruct = struct {
 		Contacts         []User               `json:"contacts"`
 		ReceivedRequests []User               `json:"receivedRequests"`
 		SentRequests     []primitive.ObjectID `json:"sentRequests"`
 	}
 	var response ResponseStruct
-	var userContacts []User
-	var userRequests []User
-	contactsFilter := bson.M{
-		"_id": bson.M{
-			"$in": contactsData.Contacts,
-		},
-	}
-	requestsFilter := bson.M{
-		"_id": bson.M{
-			"$in": contactsData.ReceivedRequests,
-		},
-	}
 
 	if contactsData.Contacts != nil {
-		contacts_cursor, contacts_err := collection.Find(context.TODO(), contactsFilter)
-		if contacts_err != nil {
+		contacts, err := getArrayOfUserIds(contactsData.Contacts)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
 			return
 		}
-		if err = contacts_cursor.All(context.TODO(), &userContacts); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-			return
-		}
+		response.Contacts = contacts
 	}
 
 	if contactsData.ReceivedRequests != nil {
-		requests_cursor, requests_err := collection.Find(context.TODO(), requestsFilter)
-		if requests_err != nil {
+		requests, err := getArrayOfUserIds(contactsData.ReceivedRequests)
+		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
 			return
 		}
-		if err = requests_cursor.All(context.TODO(), &userRequests); err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			w.Write([]byte(err.Error()))
-			return
-		}
+		response.ReceivedRequests = requests
 	}
 
-	response.Contacts = userContacts
-	response.ReceivedRequests = userRequests
 	if contactsData.SentRequests != nil {
 		response.SentRequests = *contactsData.SentRequests
 	}
@@ -196,51 +174,7 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// DEPRECATED
-func addUserContact(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	type BodyStruct = struct {
-		Id        primitive.ObjectID `json:"_id"`
-		ContactId primitive.ObjectID `json:"contactId"`
-	}
-	var body BodyStruct
-	err := json.NewDecoder(r.Body).Decode(&body)
-	if err != nil && body.Id != body.ContactId {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
-	}
-
-	collection := db_handler.Client().Collection("users")
-	filter := bson.M{
-		"_id": body.Id,
-	}
-	update := bson.M{
-		"$push": bson.M{
-			"contacts": body.ContactId,
-		},
-	}
-
-	type Contacts = struct {
-		Contacts bson.A `json:"contacts" bson:"contacts"`
-	}
-	opts := options.FindOneAndUpdate().SetReturnDocument(options.After)
-	var result Contacts
-	collection.FindOneAndUpdate(context.TODO(), filter, update, opts).Decode(&result)
-	json_data, json_error := json.Marshal(&result.Contacts)
-	if json_error != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		w.Write([]byte(err.Error()))
-		return
-	} else {
-		w.Write(json_data)
-	}
-}
-
 func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
 	type BodyStruct = struct {
 		From primitive.ObjectID `json:"from"` // Who sends the friend request
 		To   primitive.ObjectID `json:"to"`   // Who receives the request
@@ -313,9 +247,6 @@ func sendFriendRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
-
 	type BodyStruct = struct {
 		From primitive.ObjectID `json:"from"` // Who originally sent the friend request
 		To   primitive.ObjectID `json:"to"`   // Who is accepting the request
@@ -386,10 +317,42 @@ func acceptFriendRequest(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"success": true}`))
 }
 
-func updateUserData(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
+func updateUser(w http.ResponseWriter, r *http.Request) {
+	type BodyStruct = struct {
+		Id    primitive.ObjectID `json:"_id" bson:"_id"`
+		Prop  string             `json:"prop"`
+		Value string             `json:"value`
+	}
+	var body BodyStruct
+	err := json.NewDecoder(r.Body).Decode(&body)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte(err.Error()))
+		return
+	}
+	if !contains(validUserProperties, body.Prop) {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write(responseError("bad call"))
+		return
+	}
 
+	collection := db_handler.Client().Collection("users")
+	filter := bson.M{
+		"_id": body.Id,
+	}
+	setter := bson.M{
+		"$set": bson.M{
+			body.Prop: body.Value,
+		},
+	}
+	collection.FindOneAndUpdate(context.TODO(), filter, setter)
+
+	w.WriteHeader(200)
+	w.Write([]byte(`{"success": true}`))
+}
+
+// TODO: deprecate
+func updateUserData(w http.ResponseWriter, r *http.Request) {
 	type BodyStruct = struct {
 		Id   primitive.ObjectID `json:"_id" bson:"_id"`
 		Name string             `json:"name" bson:"name"`
@@ -417,9 +380,8 @@ func updateUserData(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(`{"success": true}`))
 }
 
+// TODO: deprecate
 func updateUserNotificationToken(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Content-Type", "application/json")
 	type BodyStruct = struct {
 		Id    primitive.ObjectID `json:"_id" bson:"_id"`
 		Token string             `json:"token" bson:"token"`
@@ -444,4 +406,23 @@ func updateUserNotificationToken(w http.ResponseWriter, r *http.Request) {
 	collection.FindOneAndUpdate(context.TODO(), filter, setter)
 	w.WriteHeader(200)
 	w.Write([]byte(`{"success": true}`))
+}
+
+func getArrayOfUserIds(ids *[]primitive.ObjectID) ([]User, error) {
+	filter := bson.M{
+		"_id": bson.M{
+			"$in": ids,
+		},
+	}
+	var users []User
+	collection := db_handler.Client().Collection("users")
+	contacts_cursor, contacts_err := collection.Find(context.TODO(), filter)
+	if contacts_err != nil {
+		return nil, contacts_err
+	}
+	err := contacts_cursor.All(context.TODO(), &users)
+	if err != nil {
+		return nil, err
+	}
+	return users, nil
 }

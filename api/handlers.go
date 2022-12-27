@@ -12,7 +12,7 @@ import (
 	"go.mongodb.org/mongo-driver/bson"
 )
 
-type Message struct {
+type WSMessage struct {
 	Timestamp int    `json:"timestamp"`
 	Message   string `json:"message"`
 	Id        string `json:"id"`
@@ -20,7 +20,7 @@ type Message struct {
 }
 
 var clients = make(map[string]*websocket.Conn)
-var broadcast = make(chan Message)
+var broadcast = make(chan WSMessage)
 var origins = []string{"https://simple-chat-ui.vercel.app"}
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool {
@@ -38,24 +38,38 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
+type AppRoute struct {
+	Path     string
+	Callback func(w http.ResponseWriter, r *http.Request)
+}
+
+var generalRoutes = []AppRoute{
+	{"/query-contacts", queryContacts},
+	{"/sign-in", signIn},
+}
+
+var routeGroups = [][]AppRoute{
+	generalRoutes,
+	userRoutes,
+	messageRoutes,
+}
+
 func InitRouterFunctions() {
-	// Generic routes
-	http.HandleFunc("/query-contacts", queryContacts)
-
-	// User based routes
-	http.HandleFunc("/sign-in", signIn)
-	http.HandleFunc("/get-user-id", getUserId)
-	http.HandleFunc("/get-user-contacts", getUserContacts)
-	http.HandleFunc("/add-user-contacts", addUserContact)
-	http.HandleFunc("/update-user", updateUserData)
-	http.HandleFunc("/update-user-token", updateUserNotificationToken)
-
-	http.HandleFunc("/send-friend-request", sendFriendRequest)
-	http.HandleFunc("/accept-friend-request", acceptFriendRequest)
-
-	// Message based routes
-	http.HandleFunc("/save-message", saveMessage)
-	http.HandleFunc("/get-messages", getMessages)
+	// Initialize route groups
+	for i := 0; i < len(routeGroups); i++ {
+		group := routeGroups[i]
+		for j := 0; j < len(group); j++ {
+			route := group[j]
+			http.HandleFunc(route.Path, func(w http.ResponseWriter, r *http.Request) {
+				if validateCall(w, r) {
+					route.Callback(w, r)
+				} else {
+					w.WriteHeader(http.StatusBadRequest)
+					w.Write([]byte((`"error": "bad call"`)))
+				}
+			})
+		}
+	}
 
 	// Websocket connections
 	http.HandleFunc("/ws", handleConnections)
@@ -69,10 +83,36 @@ func InitRouterFunctions() {
 	}
 }
 
-func queryContacts(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+func validateCall(w http.ResponseWriter, r *http.Request) bool {
 	w.Header().Set("Content-Type", "application/json")
+	if os.Getenv("LOCAL") == "true" {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		return true
+	}
+	var origin = r.Header.Get("Origin")
+	for _, allowed := range origins {
+		w.Header().Set("Access-Control-Allow-Origin", origin)
+		if origin == allowed {
+			return true
+		}
+	}
+	return false
+}
 
+func contains(elems []string, v string) bool {
+	for _, s := range elems {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func responseError(message string) []byte {
+	return []byte(`{ "error": ` + `"` + message + `"`)
+}
+
+func queryContacts(w http.ResponseWriter, r *http.Request) {
 	type BodyStruct = struct {
 		SearchTerm string `json:"searchTerm"`
 	}
@@ -92,11 +132,7 @@ func queryContacts(w http.ResponseWriter, r *http.Request) {
 		},
 	}
 
-	type UsersDocument = struct {
-		Email string `json:"email" bson:"email"`
-		Id    string `json:"_id" bson:"_id"`
-	}
-	var results []UsersDocument
+	var results []User
 	collection := db_handler.Client().Collection("users")
 	cursor, err := collection.Find(context.TODO(), filter)
 	if err != nil {
@@ -133,7 +169,7 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	defer ws.Close()
 	clients[query.Get("id")] = ws
 	for {
-		var msg Message
+		var msg WSMessage
 		err := ws.ReadJSON(&msg)
 		if err != nil {
 			log.Printf("error: %v", err)
