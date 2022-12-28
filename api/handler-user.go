@@ -133,19 +133,37 @@ func getUserContacts(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	type Contact = struct {
+		User
+		LastMessage *Message `json:"lastMessage"`
+	}
 	type ResponseStruct = struct {
-		Contacts         []User               `json:"contacts"`
+		Contacts         []Contact            `json:"contacts"`
 		ReceivedRequests []User               `json:"receivedRequests"`
 		SentRequests     []primitive.ObjectID `json:"sentRequests"`
 	}
 	var response ResponseStruct
 
 	if contactsData.Contacts != nil {
-		contacts, err := getArrayOfUserIds(contactsData.Contacts)
+		var contacts []Contact
+		users, err := getArrayOfUserIds(contactsData.Contacts)
 		if err != nil {
 			w.WriteHeader(http.StatusBadRequest)
 			w.Write([]byte(err.Error()))
 			return
+		}
+
+		for _, user := range users {
+			var contact Contact
+			lastMessage, err := getLastMessageBetweenUsers(user.Id, body.Id)
+			if err == nil {
+				contact.Id = user.Id
+				contact.AuthId = user.AuthId
+				contact.Email = user.Email
+				contact.Name = user.Name
+				contact.LastMessage = lastMessage
+				contacts = append(contacts, contact)
+			}
 		}
 		response.Contacts = contacts
 	}

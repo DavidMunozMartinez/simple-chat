@@ -10,6 +10,7 @@ import (
 	db_handler "chat.app/db"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/primitive"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type Message = struct {
@@ -151,4 +152,31 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 	} else {
 		w.Write(json_data)
 	}
+}
+
+func getLastMessageBetweenUsers(id1 primitive.ObjectID, id2 primitive.ObjectID) (*Message, error) {
+	filter := bson.M{
+		"$or": bson.A{
+			bson.M{
+				"$and": bson.A{
+					bson.M{"from": id1},
+					bson.M{"to": id2},
+				},
+			},
+			bson.M{
+				"$and": bson.A{
+					bson.M{"from": id2},
+					bson.M{"to": id1},
+				},
+			},
+		},
+	}
+	var message Message
+	collection := db_handler.Client().Collection("messages")
+	opts := options.FindOne().SetSort(bson.M{"createdAt": -1})
+	err := collection.FindOne(context.TODO(), filter, opts).Decode(&message)
+	if err != nil {
+		return nil, err
+	}
+	return &message, nil
 }
