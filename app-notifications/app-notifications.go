@@ -29,7 +29,7 @@ func SetupFirebase() {
 	app = init
 }
 
-func Notify(to primitive.ObjectID, title string, message string) {
+func Notify(to primitive.ObjectID, group primitive.ObjectID, title string, message string) {
 	client, err := app.Messaging(context.TODO())
 	if err != nil {
 		log.Fatalf("error getting Messaging client: %v\n", err)
@@ -56,10 +56,13 @@ func Notify(to primitive.ObjectID, title string, message string) {
 	if user.Token != "" {
 		notification := &messaging.Message{
 			Notification: &messaging.Notification{
-				Title: title + " says: ",
+				Title: title + ":",
 				Body:  message,
 			},
 			Token: user.Token,
+			Data: map[string]string{
+				"tag": group.Hex(),
+			},
 		}
 		_, err = client.Send(context.TODO(), notification)
 		if err != nil {

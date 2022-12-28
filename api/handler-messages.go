@@ -76,7 +76,7 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 			delete(clients, data.To.Hex())
 		}
 	}
-	app_notifications.Notify(data.To, data.Title, data.Message)
+	app_notifications.Notify(data.To, data.From, data.Title, data.Message)
 
 	w.WriteHeader(200)
 	w.Write(json_data)
