@@ -84,9 +84,10 @@ func saveMessage(w http.ResponseWriter, r *http.Request) {
 
 func getMessages(w http.ResponseWriter, r *http.Request) {
 	type BodyStruct = struct {
-		IndexId *primitive.ObjectID `json:"index"`
-		Me      primitive.ObjectID  `json:"me"`
-		You     primitive.ObjectID  `json:"you"`
+		RetrieveBeforeIndex bool                `json:"retrieveBeforeIndex"`
+		IndexId             *primitive.ObjectID `json:"index"`
+		Me                  primitive.ObjectID  `json:"me"`
+		You                 primitive.ObjectID  `json:"you"`
 	}
 	var data BodyStruct
 	err := json.NewDecoder(r.Body).Decode(&data)
@@ -117,11 +118,16 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 
 	filter := bson.M{}
 	if data.IndexId != nil {
+		condition := "$gt"
+		if data.RetrieveBeforeIndex {
+			condition = "$lt"
+		}
 		indexFilter := bson.M{
 			"_id": bson.M{
-				"$gt": data.IndexId,
+				condition: data.IndexId,
 			},
 		}
+
 		filter["$and"] = bson.A{
 			messagesFilter,
 			indexFilter,
@@ -130,8 +136,10 @@ func getMessages(w http.ResponseWriter, r *http.Request) {
 		filter = messagesFilter
 	}
 
+	opts := options.Find().SetLimit(5)
+	opts.SetSort(bson.M{"_id": -1})
 	collection := db_handler.Client().Collection("messages")
-	cursor, err := collection.Find(context.TODO(), filter)
+	cursor, err := collection.Find(context.TODO(), filter, opts)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write(responseError("Unable to get"))
@@ -176,7 +184,13 @@ func getLastMessageBetweenUsers(id1 primitive.ObjectID, id2 primitive.ObjectID) 
 	opts := options.FindOne().SetSort(bson.M{"createdAt": -1})
 	err := collection.FindOne(context.TODO(), filter, opts).Decode(&message)
 	if err != nil {
-		return nil, err
+		message.Id = primitive.NewObjectID()
+		message.CreatedAt = time.Date(1995, 0, 0, 0, 0, 0, 0, time.Local)
+		message.From = primitive.NewObjectID()
+		message.To = primitive.NewObjectID()
+		message.Message = ""
+
+		return &message, nil
 	}
 	return &message, nil
 }
